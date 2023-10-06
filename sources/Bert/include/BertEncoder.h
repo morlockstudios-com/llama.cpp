@@ -37,11 +37,27 @@ NS_ASSUME_NONNULL_BEGIN
 ///
 - (NSString *)summarizeFromResourceURL:(NSURL *)resourceURL threshold:(double)threshold;
 
-/// Returns all the sentence embeddings found in a given file. This API allows customers to store their own embeddings to disk and avoid having to calculate them every tine.,
+/// Given a the contents of a file, and a threshold, summarizes the contents of it.
+/// - Parameters:
+///   - fileContents: The file contents to summarize
+///   - threshold: The threhsold for summarization. Values range from 0.0 to 1.0. The higher the value, the smaller the length of the summary.
+///                Values over 0.79 might not produce a summary.
+///                For consice summary, with only the most critical information, you might set a relatively high threshold (0.7 or higher).
+///                The larger the text, the larget the customization of threshold values.
+///
+- (NSString *)summarizeFileContents:(NSString *)fileContents threshold:(double)threshold;
+
+/// Returns all the sentence embeddings found in a given file. This API allows customers to store their own embeddings to disk and avoid having to calculate them every time.
 /// - Parameters:
 ///   - resourceURL: The file where you want to get the embeddings from.
 ///   
 - (BERTEmbeddingsData *)embeddingsForResourceURL:(NSURL *)resourceURL;
+
+/// Returns all the sentence embeddings found in a given file as NSString. This API allows customers to store their own embeddings to disk and avoid having to calculate them every time.
+/// - Parameters:
+///   - resourceURL: The file where you want to get the embeddings from.
+///
+- (BERTEmbeddingsData *)embeddingsForFileContent:(NSString *)fileContent;
 
 /// Given a sentence and embeddings to look from,  returns the top N results that closely match the input sentence in semantic meaning.
 ///
