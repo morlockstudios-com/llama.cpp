@@ -26,7 +26,7 @@
     NSBundle *bundle = SWIFTPM_MODULE_BUNDLE;
     NSURL *resourceURL = [bundle URLForResource:@"ggml-model-f32" withExtension:@"bin"];
     NSURL *earningsResourceURL = [bundle URLForResource:@"earnings" withExtension:@"txt"];
-    BertEncoder * encoder = [[BertEncoder alloc] initWithModelURL:resourceURL];
+    BertEncoder * encoder = [[BertEncoder alloc] init];
     [encoder start];
     NSArray<NSString *> * result = [encoder findClosestTextForSentence:@"Who is the CEO?" inResourceURL:earningsResourceURL topN:3];
     NSLog(@"%@", result);
