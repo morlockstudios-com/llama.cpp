@@ -19,43 +19,60 @@
 @property (nonatomic, assign) int n_embd;
 @property (nonatomic, strong) NSURL *modelURL;
 @property (nonatomic, assign) int n_threads;
+@property (nonatomic, strong) NSLock *lock;
 @end
 
 @implementation BertEncoder
+
+- (instancetype)init {
+    NSBundle *bundle = SWIFTPM_MODULE_BUNDLE;
+    NSURL *resourceURL = [bundle URLForResource:@"ggml-model-f32" withExtension:@"bin"];
+    return [self initWithModelURL:resourceURL];
+}
+
 - (instancetype)initWithModelURL:(NSURL *)modelURL {
     if (self = [super init]) {
         self.modelURL = modelURL;
         unsigned int threads = std::thread::hardware_concurrency();
         self.n_threads = threads > 0 ? (threads <= 4 ? threads : threads / 2) : 4;
+        self.lock = [[NSLock alloc] init];
     }
     return self;
 }
 
 - (void)start {
+    [self.lock lock];
     self.bctx = bert_load_from_file(self.modelURL.path.UTF8String);
     self.n_embd = bert_n_embd(self.bctx);
+    [self.lock unlock];
 }
 
 - (void)stop {
+    [self.lock lock];
     bert_free(self.bctx);
+    [self.lock unlock];
 }
 
 - (std::vector<std::vector<float>>)embeddingsFromResourceURL:(NSURL *)resourceURL {
     NSMutableArray *texts = [self sentencesFromResourceURL:resourceURL];
     
     std::vector<std::vector<float>> allEmbeddings;
+    [self.lock lock];
     for (NSString *text in texts) {
         std::vector<float> embeddings(self.n_embd);
         const char *input_str = [text UTF8String];
         bert_encode(self.bctx, self.n_threads, input_str, embeddings.data());
         allEmbeddings.push_back(embeddings);
     }
+    [self.lock unlock];
     return allEmbeddings;
 }
 
 - (std::vector<float>)embeddingsForSentence:(NSString *)sentence {
+    [self.lock lock];
     std::vector<float> inputEmbedding = std::vector<float>(self.n_embd);
     bert_encode(self.bctx, self.n_threads, sentence.UTF8String, inputEmbedding.data());
+    [self.lock unlock];
     return inputEmbedding;
 }
 

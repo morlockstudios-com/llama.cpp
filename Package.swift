@@ -95,6 +95,9 @@ let package = Package(
         .target(
             name: "Bert",
             dependencies: [ "llama" ],
+            resources: [
+                .process("Resources")
+            ],
             publicHeadersPath: "include",
             cSettings: [
                 .define("GGML_USE_ACCELERATE"),
