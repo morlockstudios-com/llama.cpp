@@ -37,11 +37,17 @@ NS_ASSUME_NONNULL_BEGIN
 ///
 - (NSString *)summarizeFromResourceURL:(NSURL *)resourceURL threshold:(double)threshold;
 
-/// Returns all the sentence embeddings found in a given file. This API allows customers to store their own embeddings to disk and avoid having to calculate them every tine.,
+/// Returns all the sentence embeddings found in a given file. This API allows customers to store their own embeddings to disk and avoid having to calculate them every time.
 /// - Parameters:
 ///   - resourceURL: The file where you want to get the embeddings from.
 ///   
 - (BERTEmbeddingsData *)embeddingsForResourceURL:(NSURL *)resourceURL;
+
+/// Returns all the sentence embeddings found in a given file as NSString. This API allows customers to store their own embeddings to disk and avoid having to calculate them every time.
+/// - Parameters:
+///   - resourceURL: The file where you want to get the embeddings from.
+///
+- (BERTEmbeddingsData *)embeddingsForFileContent:(NSString *)fileContent;
 
 /// Given a sentence and embeddings to look from,  returns the top N results that closely match the input sentence in semantic meaning.
 ///

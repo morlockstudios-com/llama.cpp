@@ -54,13 +54,16 @@
 }
 
 - (std::vector<std::vector<float>>)embeddingsFromResourceURL:(NSURL *)resourceURL {
-    NSMutableArray *texts = [self sentencesFromResourceURL:resourceURL];
-    
+    NSArray *texts = [self sentencesFromResourceURL:resourceURL];
+    return [self embeddingsFromSentences:texts];
+}
+
+- (std::vector<std::vector<float>>)embeddingsFromSentences:(NSArray<NSString *> *)sentences {
     std::vector<std::vector<float>> allEmbeddings;
     [self.lock lock];
-    for (NSString *text in texts) {
+    for (NSString *sentence in sentences) {
         std::vector<float> embeddings(self.n_embd);
-        const char *input_str = [text UTF8String];
+        const char *input_str = [sentence UTF8String];
         bert_encode(self.bctx, self.n_threads, input_str, embeddings.data());
         allEmbeddings.push_back(embeddings);
     }
@@ -79,18 +82,18 @@
 // Function to find the N most similar texts
 -(std::vector<std::pair<float, size_t>>)findTopNSimilarInputVector:(const std::vector<float>&)inputVector textVectors:(const std::vector<std::vector<float>>&)textVectors N:(size_t)N {
     std::vector<std::pair<float, size_t>> similarities;
-
+    
     for (size_t i = 0; i < textVectors.size(); ++i) {
         float similarity = cosineSimilarity(inputVector, textVectors[i]);
         similarities.emplace_back(similarity, i);
     }
-
+    
     // Sort the similarities in descending order
     std::sort(similarities.begin(), similarities.end(), std::greater<std::pair<float, size_t>>());
-
+    
     // Get the top N similar texts
     std::vector<std::pair<float, size_t>> topNSimilarities(similarities.begin(), similarities.begin() + N);
-
+    
     return topNSimilarities;
 }
 
@@ -100,7 +103,7 @@
         // We might want to handle this case at the application level.
         return std::vector<float>();
     }
-
+    
     // Determine the maximum embedding size among all sentence embeddings.
     // We will handle embeddings with different dimensions.
     // Alternitevly, we could check if the size of the sentence embedding
@@ -109,28 +112,31 @@
     for (const auto& sentenceEmbedding : sentenceEmbeddings) {
         maxEmbeddingSize = std::max(maxEmbeddingSize, sentenceEmbedding.size());
     }
-
+    
     std::vector<float> documentEmbedding(maxEmbeddingSize, 0.0);
     for (const auto& sentenceEmbedding : sentenceEmbeddings) {
         for (size_t i = 0; i < sentenceEmbedding.size(); ++i) {
             documentEmbedding[i] += sentenceEmbedding[i];
         }
     }
-
+    
     // Calculate the mean by dividing by the number of sentences
     for (size_t i = 0; i < maxEmbeddingSize; ++i) {
         documentEmbedding[i] /= numSentences;
     }
-
+    
     return documentEmbedding;
 }
 
 - (NSArray<NSString *> *)findClosestTextForSentence:(NSString *)sentence inResourceURL:(NSURL *)resourceURL topN:(NSInteger)topN {
     std::vector<std::vector<float>> allEmbeddings = [self embeddingsFromResourceURL:resourceURL];
     std::vector<float> sentenceEmbedding = [self embeddingsForSentence:sentence];
+    if (allEmbeddings.size() <= 0) {
+        return [NSArray new];
+    }
     std::vector<std::pair<float, size_t>> topNSimilarities = [self findTopNSimilarInputVector:sentenceEmbedding textVectors:allEmbeddings N:topN];
-    NSMutableArray *sentenceArray = [self sentencesFromResourceURL:resourceURL];
-
+    NSArray *sentenceArray = [self sentencesFromResourceURL:resourceURL];
+    
     NSMutableArray<NSString *> *result = [NSMutableArray new];
     for (const auto& similarity : topNSimilarities) {
         size_t index = similarity.second;
@@ -151,15 +157,19 @@
         NSLog(@"Error reading file: %@", error.localizedDescription);
         return @[];
     }
+    
+    return [self sentencesFromFileContent:fileContents];
+}
 
+-(NSArray<NSString *> *)sentencesFromFileContent:(NSString *)fileContent {
     NLTokenizer *tokenizer = [[NLTokenizer alloc] initWithUnit:NLTokenUnitSentence];
-    [tokenizer setString:fileContents];
+    [tokenizer setString:fileContent];
     
     NSMutableArray *sentenceArray = [NSMutableArray array];
     
-    [tokenizer enumerateTokensInRange:NSMakeRange(0, [fileContents length])
-                               usingBlock:^(NSRange tokenRange, NLTokenizerAttributes attributes, BOOL *stop) {
-        NSString *sentence = [fileContents substringWithRange:tokenRange];
+    [tokenizer enumerateTokensInRange:NSMakeRange(0, [fileContent length])
+                           usingBlock:^(NSRange tokenRange, NLTokenizerAttributes attributes, BOOL *stop) {
+        NSString *sentence = [fileContent substringWithRange:tokenRange];
         // Check if the sentence is not empty or only consists of whitespace
         if ([[sentence stringByTrimmingCharactersInSet:[NSCharacterSet whitespaceAndNewlineCharacterSet]] length] > 0) {
             [sentenceArray addObject:sentence];
@@ -168,9 +178,9 @@
     return [sentenceArray copy];
 }
 
--(std::vector<std::string>)selectSentences:(const std::vector<std::vector<float>>&)sentenceEmbeddings documentEmbedding:(const std::vector<float>&)documentEmbedding threshold:(double)threshold sentences:(NSMutableArray<NSString *> *)sentences {
+-(std::vector<std::string>)selectSentences:(const std::vector<std::vector<float>>&)sentenceEmbeddings documentEmbedding:(const std::vector<float>&)documentEmbedding threshold:(double)threshold sentences:(NSArray<NSString *> *)sentences {
     std::vector<std::string> selectedSentences;
-
+    
     for (size_t i = 0; i < sentenceEmbeddings.size(); ++i) {
         double similarity = cosineSimilarity(sentenceEmbeddings[i], documentEmbedding);
         // Check if the similarity score is above the threshold.
@@ -184,23 +194,39 @@
             }
         }
     }
-
+    
     return selectedSentences;
 }
 
 - (NSString *)summarizeFromResourceURL:(NSURL *)resourceURL threshold:(double)threshold {
     std::vector<std::vector<float>> sentenceEmbeddings = [self embeddingsFromResourceURL:resourceURL];
     std::vector<float> documentEmbedding = [self calculateMean:sentenceEmbeddings];
-    NSMutableArray *sentences = [self sentencesFromResourceURL:resourceURL];
-
+    NSArray<NSString *> *sentences = [self sentencesFromResourceURL:resourceURL];
+    
     // Select sentences based on the threshold
     std::vector<std::string> selectedSentences = [self selectSentences:sentenceEmbeddings documentEmbedding:documentEmbedding threshold:threshold sentences:sentences];
     std::string summary;
-
+    
     for (const auto& sentence : selectedSentences) {
         summary += sentence;
     }
+    
+    return [NSString stringWithUTF8String:summary.c_str()];
+}
 
+- (NSString *)summarizeFileContents:(NSString *)fileContents threshold:(double)threshold {
+    NSArray<NSString *> *sentences = [self sentencesFromFileContent:fileContents];
+    std::vector<std::vector<float>> sentenceEmbeddings = [self embeddingsFromSentences:sentences];
+    std::vector<float> documentEmbedding = [self calculateMean:sentenceEmbeddings];
+    
+    // Select sentences based on the threshold
+    std::vector<std::string> selectedSentences = [self selectSentences:sentenceEmbeddings documentEmbedding:documentEmbedding threshold:threshold sentences:sentences];
+    std::string summary;
+    
+    for (const auto& sentence : selectedSentences) {
+        summary += sentence;
+    }
+    
     return [NSString stringWithUTF8String:summary.c_str()];
 }
 
@@ -218,6 +244,21 @@
     return data;
 }
 
+- (BERTEmbeddingsData *)embeddingsForFileContent:(NSString *)fileContent {
+    NSArray<NSString *> *sentences = [self sentencesFromFileContent:fileContent];
+    std::vector<std::vector<float>> allEmbeddings = [self embeddingsFromSentences:sentences];
+    NSMutableArray<NSArray<NSNumber *> *> *result = [NSMutableArray array];
+    for (const auto& innerVector : allEmbeddings) {
+        NSMutableArray<NSNumber *> *innerArray = [NSMutableArray array];
+        for (float floatValue : innerVector) {
+            [innerArray addObject:@(floatValue)];
+        }
+        [result addObject:innerArray];
+    }
+    BERTEmbeddingsData *data = [[BERTEmbeddingsData alloc] initWithFileContents:fileContent embeddings:result];
+    return data;
+}
+
 - (NSArray<NSString *> *)findClosestTextForSentence:(NSString *)sentence embeddingsData:(NSArray<BERTEmbeddingsData *> *)embeddingsData topN:(NSInteger)topN {
     NSMutableArray<NSString *> *closestTexts = [NSMutableArray array];
 
@@ -226,9 +267,17 @@
     
     for (BERTEmbeddingsData *data in embeddingsData) {
         // Original sentences array from the resource file. we will use this to find the sentence match after applying the math on the embeddings.
-        NSMutableArray<NSString *> *sentenceArray = [self sentencesFromResourceURL:[data resourceURL]];
-        
+        NSArray<NSString *> *sentenceArray;
+        if (data.resourceURL) {
+            sentenceArray = [self sentencesFromResourceURL:[data resourceURL]];
+        }
+        if (data.fileContents) {
+            sentenceArray = [self sentencesFromFileContent:[data fileContents]];
+        }
         std::vector<std::vector<float>> allEmbeddings = [[data embeddings] stdVectorArray];
+        if (allEmbeddings.size() <= 0) {
+            return [NSArray new];
+        }
         std::vector<std::pair<float, size_t>> topNSimilarities = [self findTopNSimilarInputVector:inputEmbedding textVectors:allEmbeddings N:topN];
         
         // Get the actual sentences corresponding to the indices and store them with their similarity scores
