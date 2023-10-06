@@ -18,5 +18,14 @@
     return self;
 }
 
+- (instancetype)initWithFileContents:(NSString *)fileContents embeddings:(NSArray<NSArray<NSNumber *> *> *)embeddings {
+    self = [super init];
+    if (self) {
+        _fileContents = fileContents;
+        _embeddings = embeddings;
+    }
+    return self;
+}
+
 @end
 
