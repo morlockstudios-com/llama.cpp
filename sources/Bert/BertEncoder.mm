@@ -260,6 +260,9 @@
 }
 
 - (NSArray<NSString *> *)findClosestTextForSentence:(NSString *)sentence embeddingsData:(NSArray<BERTEmbeddingsData *> *)embeddingsData topN:(NSInteger)topN {
+    if (embeddingsData.count == 0) {
+        return nil;
+    }
     NSMutableArray<NSString *> *closestTexts = [NSMutableArray array];
 
     std::vector<float> inputEmbedding = [self embeddingsForSentence:sentence];

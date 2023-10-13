@@ -66,7 +66,7 @@ NS_ASSUME_NONNULL_BEGIN
 ///   - embeddingsData: The embeddings to perform the similarity check on the sentence.
 ///   - topN: The topN results.
 ///
-- (NSArray<NSString *> *)findClosestTextForSentence:(NSString *)sentence embeddingsData:(NSArray<BERTEmbeddingsData *> *)embeddingsData topN:(NSInteger)topN;
+- (nullable NSArray<NSString *> *)findClosestTextForSentence:(NSString *)sentence embeddingsData:(NSArray<BERTEmbeddingsData *> *)embeddingsData topN:(NSInteger)topN;
 
 @end
 
