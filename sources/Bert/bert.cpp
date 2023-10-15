@@ -14,18 +14,6 @@
 #include <thread>
 #include <algorithm>
 
-// default hparams (all-MiniLM-L6-v2)
-struct bert_hparams
-{
-    int32_t n_vocab = 30522;
-    int32_t n_max_tokens = 512;
-    int32_t n_embd = 256;
-    int32_t n_intermediate = 1536;
-    int32_t n_head = 12;
-    int32_t n_layer = 6;
-    int32_t f16 = 1;
-};
-
 struct bert_layer
 {
     // normalization
@@ -328,10 +316,8 @@ void bert_tokenize(
 // Loading and setup
 //
 
-struct bert_ctx * bert_load_from_file(const char *fname)
+struct bert_ctx * bert_load_from_file(const char *fname, struct bert_hparams bert_params)
 {
-    printf("%s: loading model from '%s' - please wait ...\n", __func__, fname);
-
     auto fin = std::ifstream(fname, std::ios::binary);
     if (!fin)
     {
@@ -683,8 +669,7 @@ struct bert_ctx * bert_load_from_file(const char *fname)
         bert_eval(new_bert, 1, tokens, 4, nullptr);
         new_bert->max_batch_n = 0;
 
-        // TODO: Max tokens should be a param?
-        int32_t N = new_bert->model.hparams.n_max_tokens;
+        int32_t N = bert_params.n_max_tokens;
         new_bert->mem_per_input = 1.1 * (new_bert->mem_per_token * N); // add 10% to account for ggml object overhead
 
     }
