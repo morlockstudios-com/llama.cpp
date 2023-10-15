@@ -24,13 +24,24 @@ struct bert_params
     const char* prompt = "test prompt";
 };
 
+struct bert_hparams
+{
+    int32_t n_vocab = 30522;
+    int32_t n_max_tokens = 2048;
+    int32_t n_embd = 256;
+    int32_t n_intermediate = 1536;
+    int32_t n_head = 12;
+    int32_t n_layer = 6;
+    int32_t f16 = 1;
+};
+
 BERT_API bool bert_params_parse(int argc, char **argv, bert_params &params);
 
 struct bert_ctx;
 
 typedef int32_t bert_vocab_id;
 
-BERT_API struct bert_ctx * bert_load_from_file(const char * fname);
+BERT_API struct bert_ctx * bert_load_from_file(const char * fname, struct bert_hparams bert_params);
 BERT_API void bert_free(bert_ctx * ctx);
 
 // Main api, does both tokenizing and evaluation

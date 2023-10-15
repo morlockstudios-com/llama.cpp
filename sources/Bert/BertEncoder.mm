@@ -42,7 +42,8 @@
 
 - (void)start {
     [self.lock lock];
-    self.bctx = bert_load_from_file(self.modelURL.path.UTF8String);
+    struct bert_hparams bertParams;
+    self.bctx = bert_load_from_file(self.modelURL.path.UTF8String, bertParams);
     self.n_embd = bert_n_embd(self.bctx);
     [self.lock unlock];
 }
