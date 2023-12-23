@@ -20,6 +20,7 @@
 @property (nonatomic, strong) NSURL *modelURL;
 @property (nonatomic, assign) int n_threads;
 @property (nonatomic, strong) NSLock *lock;
+@property (nonatomic, assign) BOOL isRunning;
 @end
 
 @implementation BertEncoder
@@ -42,15 +43,21 @@
 
 - (void)start {
     [self.lock lock];
-    struct bert_hparams bertParams;
-    self.bctx = bert_load_from_file(self.modelURL.path.UTF8String, bertParams);
-    self.n_embd = bert_n_embd(self.bctx);
+    if (!self.isRunning) {
+        self.isRunning = YES;
+        struct bert_hparams bertParams;
+        self.bctx = bert_load_from_file(self.modelURL.path.UTF8String, bertParams);
+        self.n_embd = bert_n_embd(self.bctx);
+    }
     [self.lock unlock];
 }
 
 - (void)stop {
     [self.lock lock];
-    bert_free(self.bctx);
+    if (self.isRunning) {
+        self.isRunning = NO;
+        bert_free(self.bctx);
+    }
     [self.lock unlock];
 }
 
