@@ -2,6 +2,26 @@
 
 import PackageDescription
 
+#if arch(arm) || arch(arm64)
+let additionalCXXSettings: [CXXSetting] = [
+    .define("GGML_USE_METAL")
+]
+let additionalCSettings: [CSetting] = [
+    .define("GGML_USE_METAL")
+]
+let additionalLinkerSettings: [LinkerSetting] = [
+    .linkedFramework("Metal"),
+    .linkedFramework("MetalKit")
+]
+#else
+let additionalCXXSettings: [CXXSetting] = [
+]
+let additionalCSettings: [CSetting] = [
+]
+let additionalLinkerSettings: [LinkerSetting] = [
+]
+#endif
+
 let package = Package(
     name: "llama",
     platforms: [.macOS(.v11),
@@ -52,9 +72,8 @@ let package = Package(
                 .define("_XOPEN_SOURCE", to: "600"),
                 .define("_DARWIN_C_SOURCE"),
                 .unsafeFlags(["-fno-objc-arc"]),
-                .define("GGML_SWIFT"),
-                .define("GGML_USE_METAL")
-            ],
+                .define("GGML_SWIFT")
+            ] + additionalCSettings,
             cxxSettings: [
                 .unsafeFlags(["-Wno-shorten-64-to-32",
                               "-Wall",
@@ -84,13 +103,11 @@ let package = Package(
                 .define("NDEBUG"),
                 .define("_XOPEN_SOURCE", to: "600"),
                 .define("_DARWIN_C_SOURCE")
-                ],
+                ] + additionalCXXSettings,
             linkerSettings: [
                 .linkedFramework("Accelerate"),
                 .linkedFramework("Foundation"),
-                .linkedFramework("Metal"),
-                .linkedFramework("MetalKit")
-            ]
+            ] + additionalLinkerSettings
         ),
         .target(
             name: "Bert",
