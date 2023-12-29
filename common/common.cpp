@@ -78,6 +78,13 @@ int32_t get_num_physical_cores() {
     return n_threads > 0 ? (n_threads <= 4 ? n_threads : n_threads / 2) : 4;
 }
 
+// Assuming these are in global_variables.cpp or a similarly named file
+
+int LLAMA_BUILD_NUMBER = 1; // Replace with your actual build number
+char const *LLAMA_COMMIT = ""; // Replace with your actual commit hash
+char const *LLAMA_COMPILER = ""; // Replace with your actual compiler info
+char const *LLAMA_BUILD_TARGET = ""; // Replace with your actual build target
+
 void process_escapes(std::string& input) {
     std::size_t input_len = input.length();
     std::size_t output_idx = 0;

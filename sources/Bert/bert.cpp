@@ -763,7 +763,7 @@ void bert_eval_batch(
         };
 
         struct ggml_context *ctx0 = ggml_init(params);
-        struct ggml_cgraph gf = {};
+        struct ggml_cgraph *gf =  ggml_new_graph(ctx0);
 
         // Embeddings. word_embeddings + token_type_embeddings + position_embeddings
         struct ggml_tensor *token_layer = ggml_new_tensor_1d(ctx0, GGML_TYPE_I32, N);
@@ -830,7 +830,7 @@ void bert_eval_batch(
                 KQ = ggml_soft_max(ctx0,
                                    ggml_scale(ctx0,
                                               KQ,
-                                              ggml_new_f32(ctx0, 1.0f / sqrt((float)d_head))));
+                                              1.0f / sqrt((float)d_head)));
 
                 V = ggml_cont(ctx0, ggml_transpose(ctx0, V));
                 struct ggml_tensor *KQV = ggml_mul_mat(ctx0, V, KQ);
@@ -895,12 +895,16 @@ void bert_eval_batch(
         // normalizer
         ggml_tensor *length = ggml_sqrt(ctx0,
                                         ggml_sum(ctx0, ggml_sqr(ctx0, inpL)));
-        inpL = ggml_scale(ctx0, inpL, ggml_div(ctx0, ggml_new_f32(ctx0, 1.0f), length));
-
+        
+//        inpL = ggml_scale(ctx0, inpL, ggml_div(ctx0, ggml_new_f32(ctx0, 1.0f), length));
+        struct ggml_tensor* divResult = ggml_div(ctx0, ggml_new_f32(ctx0, 1.0f), length);
+        float divScalar = *ggml_get_data_f32(divResult);
+        inpL = ggml_scale_inplace(ctx0, inpL, divScalar);
+        
         ggml_tensor *output = inpL;
         // run the computation
-        ggml_build_forward_expand(&gf, output);
-        ggml_graph_compute_with_ctx(ctx0, &gf, n_threads);
+        ggml_build_forward_expand(gf, output);
+        ggml_graph_compute_with_ctx(ctx0, gf, n_threads);
 
 
         // float *dat = ggml_get_data_f32(output);

@@ -23,7 +23,10 @@ let package = Package(
                 "ggml-alloc.c",
                 "ggml-backend.c",
                 "ggml-quants.c",
-                "ggml-metal.m"
+                "ggml-metal.m",
+                "common/common.cpp",
+                "common/grammar-parser.cpp",
+                "common/sampling.cpp"
             ],
             resources: [
                 .process("ggml-metal.metal")
